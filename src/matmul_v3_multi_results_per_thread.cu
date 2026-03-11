@@ -40,28 +40,32 @@ __global__ void gpu_matmul3(int *a, int *b, int *c, int m, int n, int k)
     const int cRow = blockIdx.y;
     const int cCol = blockIdx.x;
 
-    const int tid = threadIdx.y * blockDim.x + threadIdx.x;
+    // 将线程号转化成一维，是为了后面的循环
+    const int tid = threadIdx.y * blockDim.x + threadIdx.x; // thread一维索引（分配warp按这个序号）
 
-    const int threadRow = threadIdx.y * TM;
+    const int threadRow = threadIdx.y * TM; // thread负责的矩阵对象在C中的位置（block内）
     const int threadCol = threadIdx.x * TK;
 
     int threadResults[TM * TK] = {0};
     int regA[TM];
     int regB[TK];
 
-    int numThreads = blockDim.x * blockDim.y;
+    int numThreads = blockDim.x * blockDim.y; // 每个block内线程个数
 
-    for (int step = 0; step < (n + BN - 1) / BN; step++)
+    for (int step = 0; step < (n + BN - 1) / BN; step++) // 共享内存分块
     {
 
         // ---- load A tile ----
         for (int i = tid; i < BM * BN; i += numThreads)
+        // 由于一个 Block 有 8*8 = 64 个线程，而 sub_a 有 64*8 = 512 个元素
+        // 这个循环就是让每个线程通过循环多次，共同把 Global 里的数据“搬”到 Shared Memory 
+        // 这实现了内存合并访问 (Coalesced Access)。
         {
             int row = i / BN;
-            int col = i % BN;
+            int col = i % BN; // 得到线程在block中所处的位置
 
             int g_r = cRow * BM + row;
-            int g_c = step * BN + col;
+            int g_c = step * BN + col; // 得到线程要加载的数据在原矩阵中的位置
 
             if (g_r < m && g_c < n)
                 sub_a[row][col] = a[g_r * n + g_c];
@@ -87,6 +91,7 @@ __global__ void gpu_matmul3(int *a, int *b, int *c, int m, int n, int k)
         __syncthreads();
 
         // ---- compute ----
+        // 对block内的每个thread编程，首先找到它在block内（smem内）的坐标，然后进行寄存器分块，和smem分块方式完全相同
         for (int dotIdx = 0; dotIdx < BN; dotIdx++)
         {
 
