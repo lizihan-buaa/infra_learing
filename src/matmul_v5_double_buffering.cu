@@ -2,8 +2,7 @@
 #include <math.h>
 #include <cuda_runtime.h>
 
-// 解决以下问题：存在bank冲突
-// 通过将sub_a的维度由[64][8]padding为[64][9]
+// 添加双缓冲机制，数据乒乓
 
 #define M 1000
 #define N 500
