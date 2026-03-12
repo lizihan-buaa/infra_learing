@@ -24,7 +24,7 @@ __managed__ int c_cpu[M * K];
 
 __global__ void gpu_matmul4(int *a, int *b, int *c, int m, int n, int k)
 {
-    __shared__ int sub_a[BM][BN];
+    __shared__ int sub_a[BM][BN + 1]; 
     __shared__ int sub_b[BN][BK];
 
     const int cRow = blockIdx.y;
@@ -50,7 +50,12 @@ __global__ void gpu_matmul4(int *a, int *b, int *c, int m, int n, int k)
             if (g_r < m && (g_c + 3) < n) {
                 // 只有完全在边界内且对齐时才使用 int4
                 // 注意：如果矩阵起始地址不对齐，此处仍需小心。__managed__ 默认对齐。
-                *((int4*)&sub_a[row][col_v * 4]) = *((int4*)&a[g_r * n + g_c]);
+                // *((int4*)&sub_a[row][col_v * 4]) = *((int4*)&a[g_r * n + g_c]);
+                int4 val = *((int4*)&a[g_r * n + g_c]);
+                sub_a[row][col_v * 4 + 0] = val.x;
+                sub_a[row][col_v * 4 + 1] = val.y;
+                sub_a[row][col_v * 4 + 2] = val.z;
+                sub_a[row][col_v * 4 + 3] = val.w;
             } else {
                 // 逐个处理边缘部分
                 for (int v = 0; v < 4; v++) {
