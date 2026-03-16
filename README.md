@@ -8,3 +8,4 @@
     v5:double_buffering
     v6:use_tensor_core
     v7:use_tensor_core; shared_memory
+    v8:use_tensor_core; shared_memory; double_buffering; async_copy(without using register,g_mem2s_mem directly)
