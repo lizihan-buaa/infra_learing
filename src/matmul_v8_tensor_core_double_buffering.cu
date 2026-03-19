@@ -71,7 +71,7 @@ __global__ void gpu_matmul_fp16(const half *a, const half *b, float *c, int m, i
         int col = t % BLOCK_K;
         cuda::memcpy_async(&sub_b[0][row][col], &b[row*k+(blockK+col)], sizeof(half), pipe);
     }
-    pipe.producer_commit();
+    pipe.producer_commit(); // 计算核心不停，搬运由专用硬件完成
 
     // 从pong0开始的主循环（包括ping0的计算部分）
     int stage = 0;
