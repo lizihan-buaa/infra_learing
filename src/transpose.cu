@@ -23,6 +23,7 @@ __global__ void gpu_transpose(int *in, int *out, int m, int n)
 
     __shared__ int sub[BLOCK_SIZE * (BLOCK_SIZE + 1)];
 
+    // global_mem -> shared_mem
     if(x < M && y < N)
     {
         sub[threadIdx.y * (BLOCK_SIZE + 1) + threadIdx.x] = in[y * M + x];
