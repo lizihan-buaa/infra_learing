@@ -81,3 +81,32 @@ __global__ void reduce_v2(float* input, float* output, int n) {
         output[blockIdx.x] = smem[0];
     }
 }
+// 第 1 轮（step=128）：tid 0 访问 smem[0, 128]，tid 1 访问 smem[1, 129]，…，tid 31 访问 smem[31, 159]。这 32 个线程分别访问 Bank 0~31 的不同地址 → 无 Bank Conflict
+// 第 2 轮（step=64）、第 3 轮（step=32） 同理，32 个线程刚好覆盖 32 个 Bank
+
+// V3: 每线程处理 2 个元素，减少空闲线程
+__global__ void reduce_v3(float* input, float* output, int n) {
+    extern __shared__ float smem[];
+
+    int tid = threadIdx.x;
+    int gid = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
+
+    // 每个线程加载 2 个相距 blockDim.x 的元素并求和
+    float val = 0.0f;
+    if (gid < n)              val += input[gid];
+    if (gid + blockDim.x < n) val += input[gid + blockDim.x];
+    smem[tid] = val;
+    __syncthreads();
+
+    // 步长从大到小的规约（同 V2）
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            smem[tid] += smem[tid + s];
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        output[blockIdx.x] = smem[0];
+    }
+}
