@@ -1,1 +1,1 @@
-# cuda_study
+# infra_learing
